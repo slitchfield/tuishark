@@ -9,7 +9,7 @@ use tui::{
     layout::{Constraint, Direction, Layout},
     style::{Modifier, Style},
     text::{Span, Spans},
-    widgets::{Block, Borders, List, ListItem},
+    widgets::{Block, Borders, List, ListItem, ListState},
     Frame, Terminal,
 };
 
@@ -94,9 +94,55 @@ fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
     ret_vec
 }
 
+struct StatefulList<T> {
+    state: ListState,
+    items: Vec<T>,
+}
+
+impl<T> StatefulList<T> {
+    fn with_items(items: Vec<T>) -> StatefulList<T> {
+        StatefulList {
+            state: ListState::default(),
+            items,
+        }
+    }
+
+    fn next(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i >= self.items.len() - 1 {
+                    0
+                } else {
+                    i + 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+
+    fn prev(&mut self) {
+        let i = match self.state.selected() {
+            Some(i) => {
+                if i == 0 {
+                    self.items.len() - 1
+                } else {
+                    i - 1
+                }
+            }
+            None => 0,
+        };
+        self.state.select(Some(i));
+    }
+
+    fn unselect(&mut self) {
+        self.state.select(None);
+    }
+}
+
 struct TuiSharkApp {
     num: usize,
-    pkts: Vec<Packet>,
+    pkts: StatefulList<Packet>,
 }
 
 #[allow(dead_code)]
@@ -104,12 +150,12 @@ impl TuiSharkApp {
     fn new() -> Self {
         TuiSharkApp {
             num: 0usize,
-            pkts: vec![],
+            pkts: StatefulList::with_items(vec![]),
         }
     }
 
     fn load_packets_from_file(&mut self, path: String) {
-        self.pkts = legacy_pcap_to_packet(path);
+        self.pkts = StatefulList::with_items(legacy_pcap_to_packet(path));
     }
 
     fn on_tick(&mut self) {}
@@ -136,7 +182,7 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut TuiSharkApp) {
         .split(f.size());
 
     let mut item_vec: Vec<ListItem> = vec![];
-    for pkt in &app.pkts {
+    for pkt in &app.pkts.items {
         let pkt_item = ListItem::new(Spans::from(Span::styled(
             format!("{}", pkt),
             Style::default().add_modifier(Modifier::ITALIC),
@@ -144,10 +190,16 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut TuiSharkApp) {
         item_vec.push(pkt_item);
     }
 
-    let packet_view =
-        List::new(item_vec).block(Block::default().borders(Borders::ALL).title("Packet View"));
+    let packet_view = List::new(item_vec)
+        .block(Block::default().borders(Borders::ALL).title("Packet View"))
+        .highlight_style(
+            Style::default()
+                .bg(tui::style::Color::Green)
+                .add_modifier(Modifier::BOLD),
+        )
+        .highlight_symbol(">> ");
 
-    f.render_widget(packet_view, chunks[0]);
+    f.render_stateful_widget(packet_view, chunks[0], &mut app.pkts.state);
 
     let bytes_view =
         List::new([]).block(Block::default().borders(Borders::ALL).title("Bytes View"));
@@ -171,8 +223,9 @@ fn run_app<B: Backend>(
         if crossterm::event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Up => app.tickup(),
-                    KeyCode::Down => app.tickdown(),
+                    KeyCode::Up => app.pkts.prev(),
+                    KeyCode::Down => app.pkts.next(),
+                    KeyCode::Left => app.pkts.unselect(),
                     KeyCode::Char('q') => return Ok(()),
                     _ => {}
                 }
@@ -195,7 +248,8 @@ fn main() -> Result<(), io::Error> {
 
     let tick_rate = Duration::from_millis(250);
     let mut app = TuiSharkApp::new();
-    let path = "/Users/slitchfield3/reference/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap";
+    //let path = "/Users/slitchfield3/reference/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap";
+    let path = "C:/Users/samue/Documents/Github/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap";
     app.load_packets_from_file(path.to_string());
     let res = run_app(&mut terminal, app, tick_rate);
 
