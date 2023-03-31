@@ -22,7 +22,7 @@ use crossterm::{
 // High level TODO list
 // - Change stateful list to a tree-based structure to support packet substructure
 //   - see github.com/EdJoPaTo/tui-rs-tree-widget.git
-// - Format byte field a la hexdump
+// - Finish formatting byte field a la hexdump
 // - Add "Unparsed Data" as pkt layer type
 
 #[allow(dead_code)]
@@ -159,7 +159,6 @@ impl<T> StatefulList<T> {
 }
 
 struct TuiSharkApp {
-    num: usize,
     pkts: StatefulList<Packet>,
 }
 
@@ -167,7 +166,6 @@ struct TuiSharkApp {
 impl TuiSharkApp {
     fn new() -> Self {
         TuiSharkApp {
-            num: 0usize,
             pkts: StatefulList::with_items(vec![]),
         }
     }
@@ -181,7 +179,7 @@ impl TuiSharkApp {
 
 impl fmt::Display for TuiSharkApp {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "TuiSharkApp [ num: {} ]", self.num)
+        write!(f, "TuiSharkApp")
     }
 }
 
