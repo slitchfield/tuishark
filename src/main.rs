@@ -50,13 +50,17 @@ impl Packet {
 
 impl fmt::Display for Packet {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Packet Num {} [ {}B ]", self.num, self.bytepool.bytes.len())
+        write!(
+            f,
+            "Packet Num {} [ {}B ]",
+            self.num,
+            self.bytepool.bytes.len()
+        )
     }
 }
 
 fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
     let file = File::open(path).unwrap();
-    let mut num_blocks = 0;
     let mut num_datablocks: usize = 0;
     let mut reader = pcap_parser::create_reader(65536, file).expect("PcapNGReader");
 
@@ -65,7 +69,6 @@ fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
     loop {
         match reader.next() {
             Ok((offset, block)) => {
-                num_blocks += 1;
                 match block {
                     pcap_parser::PcapBlockOwned::Legacy(legacyblock) => {
                         let mut pkt = Packet::new();
@@ -75,10 +78,8 @@ fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
                             .clone_from_slice(legacyblock.data);
                         ret_vec.push(pkt);
                     }
-                    pcap_parser::PcapBlockOwned::LegacyHeader(_legacyheader) => {
-                    }
-                    pcap_parser::PcapBlockOwned::NG(_ng) => {
-                    }
+                    pcap_parser::PcapBlockOwned::LegacyHeader(_legacyheader) => {}
+                    pcap_parser::PcapBlockOwned::NG(_ng) => {}
                 }
                 reader.consume(offset);
             }
@@ -134,17 +135,17 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut TuiSharkApp) {
         .constraints([Constraint::Percentage(80), Constraint::Percentage(20)].as_ref())
         .split(f.size());
 
-    let mut itemVec: Vec<ListItem> = vec![];
+    let mut item_vec: Vec<ListItem> = vec![];
     for pkt in &app.pkts {
         let pkt_item = ListItem::new(Spans::from(Span::styled(
             format!("{}", pkt),
             Style::default().add_modifier(Modifier::ITALIC),
         )));
-        itemVec.push(pkt_item);
+        item_vec.push(pkt_item);
     }
 
-    let packet_view = List::new(itemVec)
-        .block(Block::default().borders(Borders::ALL).title("Packet View"));
+    let packet_view =
+        List::new(item_vec).block(Block::default().borders(Borders::ALL).title("Packet View"));
 
     f.render_widget(packet_view, chunks[0]);
 
