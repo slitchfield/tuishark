@@ -48,6 +48,12 @@ impl Packet {
     }
 }
 
+impl fmt::Display for Packet {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(f, "Packet Num {} [ {}B ]", self.num, self.bytepool.bytes.len())
+    }
+}
+
 fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
     let file = File::open(path).unwrap();
     let mut num_blocks = 0;
@@ -70,10 +76,8 @@ fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
                         ret_vec.push(pkt);
                     }
                     pcap_parser::PcapBlockOwned::LegacyHeader(_legacyheader) => {
-                        println!("\tLegacy Header");
                     }
                     pcap_parser::PcapBlockOwned::NG(_ng) => {
-                        println!("\tNG");
                     }
                 }
                 reader.consume(offset);
@@ -85,8 +89,6 @@ fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
             Err(e) => panic!("error while reading: {:?}", e),
         }
     }
-
-    println!("Got {} blocks in total", num_blocks);
 
     ret_vec
 }
@@ -132,11 +134,16 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut TuiSharkApp) {
         .constraints([Constraint::Percentage(80), Constraint::Percentage(20)].as_ref())
         .split(f.size());
 
-    let num_item = ListItem::new(Spans::from(Span::styled(
-        format!("{}", app.num),
-        Style::default().add_modifier(Modifier::ITALIC),
-    )));
-    let packet_view = List::new(vec![num_item])
+    let mut itemVec: Vec<ListItem> = vec![];
+    for pkt in &app.pkts {
+        let pkt_item = ListItem::new(Spans::from(Span::styled(
+            format!("{}", pkt),
+            Style::default().add_modifier(Modifier::ITALIC),
+        )));
+        itemVec.push(pkt_item);
+    }
+
+    let packet_view = List::new(itemVec)
         .block(Block::default().borders(Borders::ALL).title("Packet View"));
 
     f.render_widget(packet_view, chunks[0]);
