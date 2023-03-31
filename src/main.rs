@@ -129,6 +129,48 @@ fn run_app<B: Backend>(
     Ok(())
 }
 
+fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
+    
+    let file = File::open("/home/sl/references/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap").unwrap();
+    let mut num_blocks = 0;
+    let mut reader = pcap_parser::create_reader(65536, file).expect("PcapNGReader");
+
+    let mut ret_vec: Vec<Packet> = vec![];
+
+    loop {
+        match reader.next() {
+            Ok((offset, block)) => {
+                num_blocks += 1;
+                match block {
+                    pcap_parser::PcapBlockOwned::Legacy(legacyblock) => { 
+                        let mut pkt = Packet::new();
+                        pkt.bytepool[..legacyblock.caplen] legacyblock.data;
+                    },
+                    pcap_parser::PcapBlockOwned::LegacyHeader(legacyheader) => { println!("\tLegacy Header"); },
+                    pcap_parser::PcapBlockOwned::NG(ng) => { println!("\tNG"); },
+                    _ => {},
+                }
+                reader.consume(offset);
+            },
+            Err(pcap_parser::PcapError::Eof) => break,
+            Err(pcap_parser::PcapError::Incomplete) => {
+                reader.refill().unwrap();
+            },
+            Err(e) => panic!("error while reading: {:?}", e),
+            _ => {}
+        }
+    }
+
+    println!("Got {} blocks in total", num_blocks);
+
+
+    vec![]
+}
+
+use pcap_parser::{self, LegacyPcapBlock};
+use pcap_parser::traits::PcapReaderIterator;
+use std::fs::File;
+
 fn main() -> Result<(), io::Error> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -138,7 +180,8 @@ fn main() -> Result<(), io::Error> {
 
     let tick_rate = Duration::from_millis(250);
     let app = TuiSharkApp::new();
-    let res = run_app(&mut terminal, app, tick_rate);
+    //let res = run_app(&mut terminal, app, tick_rate);
+    let res: Result<(), io::Error> = Ok(());
 
     disable_raw_mode()?;
     execute!(
@@ -153,5 +196,9 @@ fn main() -> Result<(), io::Error> {
     } else {
         println!("Ok! Done and exiting...")
     }
+
+    let path = "/home/sl/references/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap";
+    let pkt_list = legacy_pcap_to_packet(path.to_string());
+    
     Ok(())
 }
