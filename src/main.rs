@@ -1,6 +1,7 @@
 use core::fmt;
 use std::{
-    io, 
+    fs::File,
+    io,
     time::{Duration, Instant},
 };
 use tui::{
@@ -21,7 +22,7 @@ use crossterm::{
 #[allow(dead_code)]
 const MTU: usize = 1500;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct BytePool {
     bytes: [u8; MTU],
 }
@@ -32,7 +33,7 @@ impl BytePool {
     }
 }
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 struct Packet {
     num: usize,
     bytepool: BytePool,
@@ -47,15 +48,65 @@ impl Packet {
     }
 }
 
-struct TuiSharkApp {
-    num: usize,
-    pkts: [Packet; 8],
+fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
+    let file = File::open(path).unwrap();
+    let mut num_blocks = 0;
+    let mut num_datablocks: usize = 0;
+    let mut reader = pcap_parser::create_reader(65536, file).expect("PcapNGReader");
+
+    let mut ret_vec: Vec<Packet> = vec![];
+
+    loop {
+        match reader.next() {
+            Ok((offset, block)) => {
+                num_blocks += 1;
+                match block {
+                    pcap_parser::PcapBlockOwned::Legacy(legacyblock) => {
+                        let mut pkt = Packet::new();
+                        pkt.num = num_datablocks;
+                        num_datablocks += 1;
+                        pkt.bytepool.bytes[..legacyblock.caplen as usize]
+                            .clone_from_slice(legacyblock.data);
+                        ret_vec.push(pkt);
+                    }
+                    pcap_parser::PcapBlockOwned::LegacyHeader(_legacyheader) => {
+                        println!("\tLegacy Header");
+                    }
+                    pcap_parser::PcapBlockOwned::NG(_ng) => {
+                        println!("\tNG");
+                    }
+                }
+                reader.consume(offset);
+            }
+            Err(pcap_parser::PcapError::Eof) => break,
+            Err(pcap_parser::PcapError::Incomplete) => {
+                reader.refill().unwrap();
+            }
+            Err(e) => panic!("error while reading: {:?}", e),
+        }
+    }
+
+    println!("Got {} blocks in total", num_blocks);
+
+    ret_vec
 }
 
+struct TuiSharkApp {
+    num: usize,
+    pkts: Vec<Packet>,
+}
+
+#[allow(dead_code)]
 impl TuiSharkApp {
     fn new() -> Self {
-        TuiSharkApp { num: 0usize,
-        pkts: [Packet::new(); 8] }
+        TuiSharkApp {
+            num: 0usize,
+            pkts: vec![],
+        }
+    }
+
+    fn load_packets_from_file(&mut self, path: String) {
+        self.pkts = legacy_pcap_to_packet(path);
     }
 
     fn on_tick(&mut self) {}
@@ -81,12 +132,12 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut TuiSharkApp) {
         .constraints([Constraint::Percentage(80), Constraint::Percentage(20)].as_ref())
         .split(f.size());
 
-    let numItem = ListItem::new(Spans::from(Span::styled(
+    let num_item = ListItem::new(Spans::from(Span::styled(
         format!("{}", app.num),
         Style::default().add_modifier(Modifier::ITALIC),
     )));
-    let packet_view =
-        List::new(vec![numItem]).block(Block::default().borders(Borders::ALL).title("Packet View"));
+    let packet_view = List::new(vec![num_item])
+        .block(Block::default().borders(Borders::ALL).title("Packet View"));
 
     f.render_widget(packet_view, chunks[0]);
 
@@ -125,51 +176,7 @@ fn run_app<B: Backend>(
             last_tick = Instant::now();
         }
     }
-
-    Ok(())
 }
-
-fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
-    
-    let file = File::open("/home/sl/references/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap").unwrap();
-    let mut num_blocks = 0;
-    let mut reader = pcap_parser::create_reader(65536, file).expect("PcapNGReader");
-
-    let mut ret_vec: Vec<Packet> = vec![];
-
-    loop {
-        match reader.next() {
-            Ok((offset, block)) => {
-                num_blocks += 1;
-                match block {
-                    pcap_parser::PcapBlockOwned::Legacy(legacyblock) => { 
-                        let mut pkt = Packet::new();
-                        pkt.bytepool[..legacyblock.caplen] legacyblock.data;
-                    },
-                    pcap_parser::PcapBlockOwned::LegacyHeader(legacyheader) => { println!("\tLegacy Header"); },
-                    pcap_parser::PcapBlockOwned::NG(ng) => { println!("\tNG"); },
-                    _ => {},
-                }
-                reader.consume(offset);
-            },
-            Err(pcap_parser::PcapError::Eof) => break,
-            Err(pcap_parser::PcapError::Incomplete) => {
-                reader.refill().unwrap();
-            },
-            Err(e) => panic!("error while reading: {:?}", e),
-            _ => {}
-        }
-    }
-
-    println!("Got {} blocks in total", num_blocks);
-
-
-    vec![]
-}
-
-use pcap_parser::{self, LegacyPcapBlock};
-use pcap_parser::traits::PcapReaderIterator;
-use std::fs::File;
 
 fn main() -> Result<(), io::Error> {
     enable_raw_mode()?;
@@ -179,9 +186,10 @@ fn main() -> Result<(), io::Error> {
     let mut terminal = Terminal::new(backend)?;
 
     let tick_rate = Duration::from_millis(250);
-    let app = TuiSharkApp::new();
-    //let res = run_app(&mut terminal, app, tick_rate);
-    let res: Result<(), io::Error> = Ok(());
+    let mut app = TuiSharkApp::new();
+    let path = "/Users/slitchfield3/reference/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap";
+    app.load_packets_from_file(path.to_string());
+    let res = run_app(&mut terminal, app, tick_rate);
 
     disable_raw_mode()?;
     execute!(
@@ -197,8 +205,5 @@ fn main() -> Result<(), io::Error> {
         println!("Ok! Done and exiting...")
     }
 
-    let path = "/home/sl/references/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap";
-    let pkt_list = legacy_pcap_to_packet(path.to_string());
-    
     Ok(())
 }
