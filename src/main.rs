@@ -8,8 +8,8 @@ use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::{Modifier, Style},
-    text::{Span, Spans},
-    widgets::{Block, Borders, List, ListItem, ListState},
+    text::{Span, Spans, Text},
+    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
     Frame, Terminal,
 };
 
@@ -36,6 +36,17 @@ struct BytePool {
 impl BytePool {
     fn new() -> Self {
         BytePool { bytes: vec![] }
+    }
+}
+
+impl fmt::Display for BytePool {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        writeln!(f, "      00 01 02 03 04 05 06 07")?;
+        write!(f, "0x00: ")?;
+        for i in 0..8 {
+            write!(f, "{:02X} ", self.bytes[i])?;
+        }
+        Ok(())
     }
 }
 
@@ -166,14 +177,6 @@ impl TuiSharkApp {
     }
 
     fn on_tick(&mut self) {}
-
-    fn tickup(&mut self) {
-        self.num += 1;
-    }
-
-    fn tickdown(&mut self) {
-        self.num -= 1;
-    }
 }
 
 impl fmt::Display for TuiSharkApp {
@@ -208,10 +211,21 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut TuiSharkApp) {
 
     f.render_stateful_widget(packet_view, chunks[0], &mut app.pkts.state);
 
-    let bytes_view =
-        List::new([]).block(Block::default().borders(Borders::ALL).title("Bytes View"));
+    let byte_text = match app.pkts.state.selected() {
+        Some(i) => {
+            let bytepool = &app.pkts.items[i].bytepool;
+            Text::from(bytepool.to_string())
+        }
+        None => Text::from(""),
+    };
 
-    f.render_widget(bytes_view, chunks[1]);
+    let bytes_paragraph = Paragraph::new(byte_text)
+        .block(Block::default().title("Byte View").borders(Borders::ALL))
+        .style(Style::default())
+        .alignment(tui::layout::Alignment::Left)
+        .wrap(Wrap { trim: false });
+
+    f.render_widget(bytes_paragraph, chunks[1]);
 }
 
 fn run_app<B: Backend>(
