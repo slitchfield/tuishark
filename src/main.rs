@@ -19,21 +19,27 @@ use crossterm::{
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
 
+// High level TODO list
+// - Change stateful list to a tree-based structure to support packet substructure
+//   - see github.com/EdJoPaTo/tui-rs-tree-widget.git
+// - Format byte field a la hexdump
+// - Add "Unparsed Data" as pkt layer type
+
 #[allow(dead_code)]
 const MTU: usize = 1500;
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 struct BytePool {
-    bytes: [u8; MTU],
+    bytes: Vec<u8>,
 }
 
 impl BytePool {
     fn new() -> Self {
-        BytePool { bytes: [0; MTU] }
+        BytePool { bytes: vec![] }
     }
 }
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Clone, Debug)]
 struct Packet {
     num: usize,
     bytepool: BytePool,
@@ -74,8 +80,9 @@ fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
                         let mut pkt = Packet::new();
                         pkt.num = num_datablocks;
                         num_datablocks += 1;
-                        pkt.bytepool.bytes[..legacyblock.caplen as usize]
-                            .clone_from_slice(legacyblock.data);
+                        let pkt_len = legacyblock.caplen as usize;
+                        pkt.bytepool.bytes.reserve(pkt_len);
+                        pkt.bytepool.bytes.extend_from_slice(legacyblock.data);
                         ret_vec.push(pkt);
                     }
                     pcap_parser::PcapBlockOwned::LegacyHeader(_legacyheader) => {}
