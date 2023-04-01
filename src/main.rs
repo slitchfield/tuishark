@@ -26,7 +26,9 @@ use crossterm::{
 };
 
 // High level TODO list
-// - Parse Ethernet Header
+// - Parse 802.1q Header
+// - Parse IPV4
+// - Somehow cache treeitem construction to minimize slowdown
 
 struct TuiSharkApp<'a> {
     raw_pkts: Vec<Packet>,
