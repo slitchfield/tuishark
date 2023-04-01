@@ -4,12 +4,16 @@ use tui_tree_widget::TreeItem;
 
 #[derive(Clone, Debug)]
 pub enum Ethertype {
+    IPV4,
     Unidentified,
 }
 
 impl fmt::Display for Ethertype {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Self::IPV4 => {
+                write!(f, "IPV4")
+            }
             Self::Unidentified => {
                 write!(f, "Unidentified")
             }
@@ -27,7 +31,6 @@ fn mac_to_string(mac_addr_in: &[u8; 6]) -> String {
         mac_addr_in[4],
         mac_addr_in[5],
     )
-    .to_string()
 }
 
 #[derive(Clone, Debug)]
@@ -67,6 +70,7 @@ impl Ethernet {
         // TODO: Handle 802.1q tag value of ethertype. Requires consumption of more bytes
         let ethtypetmp: u32 = (ether_type_raw[0] as u32) * 256 + (ether_type_raw[1] as u32);
         let ether_type = match ethtypetmp {
+            0x0800 => Ethertype::IPV4,
             _ => Ethertype::Unidentified,
         };
 
@@ -87,7 +91,7 @@ impl fmt::Display for Ethernet {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(
             f,
-            "Ethernet Data [Source: {} | Destination: {} | Type: {}]",
+            "Ethernet Data [Destination: {} | Source: {} | Type: {}]",
             mac_to_string(&self.destination_mac),
             mac_to_string(&self.source_mac),
             self.ether_type
