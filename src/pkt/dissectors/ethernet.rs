@@ -53,8 +53,21 @@ impl Ethernet {
     }
 
     pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
-        TreeItem::new_leaf(self.to_string())
-            .style(Style::default().fg(Color::Black).bg(Color::LightYellow))
+        TreeItem::new(
+            self.to_string(),
+            vec![
+                TreeItem::new_leaf(format!(
+                    "Destination Mac Address: {}",
+                    mac_to_string(&self.destination_mac)
+                )),
+                TreeItem::new_leaf(format!(
+                    "Source Mac Address:      {}",
+                    mac_to_string(&self.source_mac)
+                )),
+                TreeItem::new_leaf(format!("Ethertype: {}", self.ether_type)),
+            ],
+        )
+        .style(Style::default().fg(Color::Black).bg(Color::LightYellow))
     }
 
     pub fn from_bytes(_next_byte: usize, bytes: &[u8]) -> (Self, usize) {
