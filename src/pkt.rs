@@ -14,15 +14,17 @@ impl BytePool {
         BytePool { bytes: vec![] }
     }
 
-    pub fn hexdump(&self, _window_width: usize) -> String {
-        let mut retstr: String = String::new();
-
-        let bytes_per_line = 16; // TODO: Dynamic based on window width
-
+    pub fn hexdump(&self, window_width: usize) -> String {
         const ADDRESS_WIDTH: usize = 4;
         const ROW_PREAMBLE_WIDTH: usize = ADDRESS_WIDTH + 2 + 2; // Hex 0x + ": "
 
+        let useful_space = window_width - ROW_PREAMBLE_WIDTH;
+        let maximum_bytes_per_line = useful_space / 3; // "XX " per byte
+        let bytes_per_line = (2usize).pow((maximum_bytes_per_line as f32).log2() as u32);
+
+        let mut retstr: String = String::new();
         retstr.extend([" "; ROW_PREAMBLE_WIDTH]);
+
         for i in 0..bytes_per_line {
             retstr += format!("{:02x} ", i).as_str();
         }

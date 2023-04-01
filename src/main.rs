@@ -127,7 +127,8 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut TuiSharkApp) {
     let byte_text = match app.pkts.state.selected() {
         Some(i) => {
             let bytepool = &app.pkts.items[i].bytepool;
-            Text::from(bytepool.hexdump(16usize))
+            let window_width = chunks[1].width - 2;
+            Text::from(bytepool.hexdump(window_width as usize))
         }
         None => Text::from(""),
     };
