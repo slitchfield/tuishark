@@ -93,12 +93,14 @@ impl fmt::Display for BytePool {
 
 #[derive(Clone, Debug)]
 pub enum Layer {
+    Ethernet(dissectors::ethernet::Ethernet),
     Undecoded(dissectors::undecoded::Undecoded),
 }
 
 impl Layer {
     pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
         match self {
+            Layer::Ethernet(inner) => inner.to_tree_item(),
             Layer::Undecoded(inner) => inner.to_tree_item(),
         }
     }
@@ -106,6 +108,7 @@ impl Layer {
 impl fmt::Display for Layer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
+            Layer::Ethernet(layer) => write!(f, "{}", layer)?,
             Layer::Undecoded(layer) => write!(f, "{}", layer)?,
         }
         Ok(())
@@ -135,11 +138,20 @@ impl Packet {
     pub fn decode(&mut self) {
         // TODO: fill out current stub
         let num_bytes = self.bytepool.bytes.len();
-        self.layers
-            .push(Layer::Undecoded(dissectors::undecoded::Undecoded {
-                start_offset: 0,
-                length: num_bytes,
-            }));
+        match self.linktype {
+            pcap_parser::Linktype::ETHERNET => {
+                // Todo: have each dissector ingest bytes and return a "next byte" along with the constructed layer
+                self.layers
+                    .push(Layer::Ethernet(dissectors::ethernet::Ethernet {}));
+            }
+            _ => {
+                self.layers
+                    .push(Layer::Undecoded(dissectors::undecoded::Undecoded {
+                        start_offset: 0,
+                        length: num_bytes,
+                    }));
+            }
+        }
     }
 
     pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
