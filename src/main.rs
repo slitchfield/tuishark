@@ -133,6 +133,19 @@ fn run_app<B: Backend>(
     }
 }
 
+#[cfg(target_os = "linux")]
+fn get_hardcoded_path() -> &'static str {
+    "/home/sl/references/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap"
+}
+#[cfg(target_os = "macos")]
+fn get_hardcoded_path() -> &'static str {
+    "/Users/slitchfield3/reference/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap"
+}
+#[cfg(target_os = "windows")]
+fn get_hardcoded_path() -> &'static str {
+    "C:/Users/samue/Documents/Github/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap"
+}
+
 fn main() -> Result<(), io::Error> {
     enable_raw_mode()?;
     let mut stdout = io::stdout();
@@ -142,8 +155,7 @@ fn main() -> Result<(), io::Error> {
 
     let tick_rate = Duration::from_millis(250);
     let mut app = TuiSharkApp::new();
-    //let path = "/Users/slitchfield3/reference/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap";
-    let path = "C:/Users/samue/Documents/Github/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap";
+    let path = get_hardcoded_path();
     app.load_packets_from_file(path.to_string());
     let res = run_app(&mut terminal, app, tick_rate);
 
