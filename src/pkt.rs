@@ -18,8 +18,8 @@ impl BytePool {
         const ADDRESS_WIDTH: usize = 4;
         const ROW_PREAMBLE_WIDTH: usize = ADDRESS_WIDTH + 2 + 2; // Hex 0x + ": "
 
-        let useful_space = window_width - ROW_PREAMBLE_WIDTH;
-        let maximum_bytes_per_line = useful_space / 3; // "XX " per byte
+        let useful_space = window_width - ROW_PREAMBLE_WIDTH - 2; // Subtract further 2 for bytes/ascii break
+        let maximum_bytes_per_line = useful_space / 4; // "XX " per byte
         let bytes_per_line = (2usize).pow((maximum_bytes_per_line as f32).log2() as u32);
 
         let mut retstr: String = String::new();
@@ -28,22 +28,47 @@ impl BytePool {
         for i in 0..bytes_per_line {
             retstr += format!("{:02x} ", i).as_str();
         }
+        retstr += "|\n";
+        for _ in 0..(ROW_PREAMBLE_WIDTH + bytes_per_line * 4) {
+            retstr += "-";
+        }
         retstr += "\n";
 
         let num_lines = self.bytes.len() / bytes_per_line;
         for i in 0..num_lines {
-            retstr += format!("{:#06X}: ", i * bytes_per_line).as_str();
+            retstr += format!("{:#06X}| ", i * bytes_per_line).as_str();
             for j in 0..bytes_per_line {
                 retstr += format!("{:02x} ", self.bytes[i * bytes_per_line + j]).as_str();
+            }
+            retstr += "| ";
+            for j in 0..bytes_per_line {
+                let byte = self.bytes[i * bytes_per_line + j];
+                if byte.is_ascii() && !byte.is_ascii_control() {
+                    retstr.push(byte as char);
+                } else {
+                    retstr.push('.');
+                }
             }
             retstr += "\n";
         }
 
         let leftover_bytes = self.bytes.len() % bytes_per_line;
         if leftover_bytes != 0 {
-            retstr += format!("{:#06X}: ", num_lines * bytes_per_line).as_str();
+            retstr += format!("{:#06X}| ", num_lines * bytes_per_line).as_str();
             for i in 0..leftover_bytes {
                 retstr += format!("{:02x} ", self.bytes[num_lines * bytes_per_line + i]).as_str();
+            }
+            for _ in 0..bytes_per_line - leftover_bytes {
+                retstr += "   ";
+            }
+            retstr += "| ";
+            for j in 0..leftover_bytes {
+                let byte = self.bytes[num_lines * bytes_per_line + j];
+                if byte.is_ascii() && !byte.is_ascii_control() {
+                    retstr.push(byte as char);
+                } else {
+                    retstr.push('.');
+                }
             }
         }
 
