@@ -1,6 +1,9 @@
 mod pkt;
 use crate::pkt::{legacy_pcap_to_packet, Packet};
 
+mod statefultree;
+use crate::statefultree::StatefulTree;
+
 use core::fmt;
 use std::{
     io,
@@ -10,89 +13,60 @@ use tui::{
     backend::{Backend, CrosstermBackend},
     layout::{Constraint, Direction, Layout},
     style::{Modifier, Style},
-    text::{Span, Spans, Text},
-    widgets::{Block, Borders, List, ListItem, ListState, Paragraph, Wrap},
+    text::Text,
+    widgets::{Block, Borders, Paragraph, Wrap},
     Frame, Terminal,
 };
+use tui_tree_widget::Tree;
 
 use crossterm::{
     event::{self, DisableMouseCapture, EnableMouseCapture, Event, KeyCode},
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
+use tui_tree_widget::TreeItem;
 
 // High level TODO list
-// - Change stateful list to a tree-based structure to support packet substructure
-//   - see github.com/EdJoPaTo/tui-rs-tree-widget.git
-// - Finish formatting byte field a la hexdump
-// - Add "Unparsed Data" as pkt layer type
+// - Parse Ethernet Header
 
-struct StatefulList<T> {
-    state: ListState,
-    items: Vec<T>,
-}
-
-impl<T> StatefulList<T> {
-    fn with_items(items: Vec<T>) -> StatefulList<T> {
-        StatefulList {
-            state: ListState::default(),
-            items,
-        }
-    }
-
-    fn next(&mut self) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i >= self.items.len() - 1 {
-                    0
-                } else {
-                    i + 1
-                }
-            }
-            None => 0,
-        };
-        self.state.select(Some(i));
-    }
-
-    fn prev(&mut self) {
-        let i = match self.state.selected() {
-            Some(i) => {
-                if i == 0 {
-                    self.items.len() - 1
-                } else {
-                    i - 1
-                }
-            }
-            None => 0,
-        };
-        self.state.select(Some(i));
-    }
-
-    fn unselect(&mut self) {
-        self.state.select(None);
-    }
-}
-
-struct TuiSharkApp {
-    pkts: StatefulList<Packet>,
+struct TuiSharkApp<'a> {
+    raw_pkts: Vec<Packet>,
+    pkt_tree: StatefulTree<'a>,
 }
 
 #[allow(dead_code)]
-impl TuiSharkApp {
+impl<'a> TuiSharkApp<'a> {
     fn new() -> Self {
         TuiSharkApp {
-            pkts: StatefulList::with_items(vec![]),
+            raw_pkts: vec![],
+            pkt_tree: StatefulTree::with_items(vec![]),
         }
     }
 
     fn load_packets_from_file(&mut self, path: String) {
-        self.pkts = StatefulList::with_items(legacy_pcap_to_packet(path));
-    }
+        self.raw_pkts = legacy_pcap_to_packet(path);
+        for pkt in &mut self.raw_pkts {
+            pkt.decode();
+        }
 
-    fn on_tick(&mut self) {}
+        let mut tree_vec = vec![];
+        for pkt in self.raw_pkts.iter() {
+            tree_vec.push(TreeItem::new(
+                pkt.to_string(),
+                vec![TreeItem::new_leaf(pkt.layers[0].to_string())],
+            ));
+            // TODO: If a new tree item is constructed by calling
+            //   pkt.to_tree_item(), some lifetime fuckery occurs.
+            //let new_item = pkt.to_tree_item();
+            //tree_vec.push(new_item);
+        }
+        self.pkt_tree.extend_items(tree_vec);
+        //self.pkt_tree =
+        //    StatefulTree::with_items(self.raw_pkts.iter().map(|p| p.to_tree_item()).collect());
+    }
 }
 
-impl fmt::Display for TuiSharkApp {
+impl fmt::Display for TuiSharkApp<'_> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         write!(f, "TuiSharkApp")
     }
@@ -104,33 +78,29 @@ fn ui<B: Backend>(f: &mut Frame<B>, app: &mut TuiSharkApp) {
         .constraints([Constraint::Percentage(80), Constraint::Percentage(20)].as_ref())
         .split(f.size());
 
-    let mut item_vec: Vec<ListItem> = vec![];
-    for pkt in &app.pkts.items {
-        let pkt_item = ListItem::new(Spans::from(Span::styled(
-            format!("{}", pkt),
-            Style::default().add_modifier(Modifier::ITALIC),
-        )));
-        item_vec.push(pkt_item);
-    }
-
-    let packet_view = List::new(item_vec)
-        .block(Block::default().borders(Borders::ALL).title("Packet View"))
+    let packet_view = Tree::new(app.pkt_tree.items.clone())
+        .block(
+            Block::default()
+                .borders(Borders::ALL)
+                .title(format!("Packet View {:?}", app.pkt_tree.state)),
+        )
         .highlight_style(
             Style::default()
-                .bg(tui::style::Color::Green)
+                .fg(tui::style::Color::Black)
+                .bg(tui::style::Color::LightGreen)
                 .add_modifier(Modifier::BOLD),
         )
         .highlight_symbol(">> ");
 
-    f.render_stateful_widget(packet_view, chunks[0], &mut app.pkts.state);
+    f.render_stateful_widget(packet_view, chunks[0], &mut app.pkt_tree.state);
 
-    let byte_text = match app.pkts.state.selected() {
-        Some(i) => {
-            let bytepool = &app.pkts.items[i].bytepool;
-            let window_width = chunks[1].width - 2;
-            Text::from(bytepool.hexdump(window_width as usize))
-        }
-        None => Text::from(""),
+    let byte_text = if app.pkt_tree.state.selected().is_empty() {
+        Text::from("")
+    } else {
+        let idx = app.pkt_tree.state.selected()[0];
+        let bytepool = &app.raw_pkts[idx].bytepool;
+        let window_width = chunks[1].width - 2;
+        Text::from(bytepool.hexdump(window_width as usize))
     };
 
     let bytes_paragraph = Paragraph::new(byte_text)
@@ -158,9 +128,11 @@ fn run_app<B: Backend>(
         if crossterm::event::poll(timeout)? {
             if let Event::Key(key) = event::read()? {
                 match key.code {
-                    KeyCode::Up => app.pkts.prev(),
-                    KeyCode::Down => app.pkts.next(),
-                    KeyCode::Left => app.pkts.unselect(),
+                    KeyCode::Left => app.pkt_tree.left(),
+                    KeyCode::Right => app.pkt_tree.right(),
+                    KeyCode::Down => app.pkt_tree.down(),
+                    KeyCode::Up => app.pkt_tree.up(),
+
                     KeyCode::Char('q') => return Ok(()),
                     _ => {}
                 }
@@ -168,7 +140,6 @@ fn run_app<B: Backend>(
         }
 
         if last_tick.elapsed() >= tick_rate {
-            app.on_tick();
             last_tick = Instant::now();
         }
     }

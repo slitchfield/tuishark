@@ -7,5 +7,6 @@ edition = "2021"
 
 [dependencies]
 tui = "0.19"
+tui-tree-widget = "0.11.0"
 crossterm = "0.25"
 pcap-parser = "0.14"

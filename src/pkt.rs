@@ -1,6 +1,8 @@
 use std::fmt;
 use std::fs::File;
 
+use tui_tree_widget::TreeItem;
+
 #[allow(dead_code)]
 pub const MTU: usize = 1500;
 
@@ -88,9 +90,50 @@ impl fmt::Display for BytePool {
 }
 
 #[derive(Clone, Debug)]
+pub struct Undecoded {
+    start_offset: usize,
+    length: usize,
+}
+
+#[allow(dead_code)]
+impl Undecoded {
+    pub fn new() -> Self {
+        Undecoded {
+            start_offset: 0,
+            length: 0,
+        }
+    }
+}
+
+impl fmt::Display for Undecoded {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        write!(
+            f,
+            "Undecoded Data [Starts: {}, Len: {}]",
+            self.start_offset, self.length
+        )
+    }
+}
+
+#[derive(Clone, Debug)]
+pub enum Layer {
+    Undecoded(Undecoded),
+}
+
+impl fmt::Display for Layer {
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        match self {
+            Layer::Undecoded(layer) => write!(f, "{}", layer)?,
+        }
+        Ok(())
+    }
+}
+
+#[derive(Clone, Debug)]
 pub struct Packet {
     num: usize,
     pub bytepool: BytePool,
+    pub layers: Vec<Layer>,
 }
 
 impl Packet {
@@ -98,7 +141,22 @@ impl Packet {
         Packet {
             num: 0,
             bytepool: BytePool::new(),
+            layers: vec![],
         }
+    }
+
+    pub fn decode(&mut self) {
+        // TODO: fill out current stub
+        let num_bytes = self.bytepool.bytes.len();
+        self.layers.push(Layer::Undecoded(Undecoded {
+            start_offset: 0,
+            length: num_bytes,
+        }));
+    }
+
+    #[allow(dead_code)]
+    pub fn to_tree_item(&self) -> TreeItem<'_> {
+        TreeItem::new("Pkt", vec![TreeItem::new_leaf("leaf")])
     }
 }
 
