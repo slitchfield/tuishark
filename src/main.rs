@@ -24,7 +24,6 @@ use crossterm::{
     execute,
     terminal::{disable_raw_mode, enable_raw_mode, EnterAlternateScreen, LeaveAlternateScreen},
 };
-use tui_tree_widget::TreeItem;
 
 // High level TODO list
 // - Parse Ethernet Header
@@ -45,24 +44,13 @@ impl<'a> TuiSharkApp<'a> {
 
     fn load_packets_from_file(&mut self, path: String) {
         self.raw_pkts = legacy_pcap_to_packet(path);
+        
         for pkt in &mut self.raw_pkts {
             pkt.decode();
         }
 
-        let mut tree_vec = vec![];
-        for pkt in self.raw_pkts.iter() {
-            tree_vec.push(TreeItem::new(
-                pkt.to_string(),
-                vec![TreeItem::new_leaf(pkt.layers[0].to_string())],
-            ));
-            // TODO: If a new tree item is constructed by calling
-            //   pkt.to_tree_item(), some lifetime fuckery occurs.
-            //let new_item = pkt.to_tree_item();
-            //tree_vec.push(new_item);
-        }
-        self.pkt_tree.extend_items(tree_vec);
-        //self.pkt_tree =
-        //    StatefulTree::with_items(self.raw_pkts.iter().map(|p| p.to_tree_item()).collect());
+        self.pkt_tree =
+            StatefulTree::with_items(self.raw_pkts.iter().map(|p| p.to_tree_item()).collect());
     }
 }
 

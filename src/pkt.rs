@@ -154,9 +154,11 @@ impl Packet {
         }));
     }
 
-    #[allow(dead_code)]
-    pub fn to_tree_item(&self) -> TreeItem<'_> {
-        TreeItem::new("Pkt", vec![TreeItem::new_leaf("leaf")])
+    pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
+        TreeItem::new(
+                self.to_string(),
+                vec![TreeItem::new_leaf(self.layers[0].to_string())],
+        )
     }
 }
 
