@@ -44,7 +44,7 @@ impl<'a> TuiSharkApp<'a> {
 
     fn load_packets_from_file(&mut self, path: String) {
         self.raw_pkts = legacy_pcap_to_packet(path);
-        
+
         for pkt in &mut self.raw_pkts {
             pkt.decode();
         }

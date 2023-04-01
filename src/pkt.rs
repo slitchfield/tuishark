@@ -103,6 +103,10 @@ impl Undecoded {
             length: 0,
         }
     }
+
+    pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
+        TreeItem::new_leaf(self.to_string())
+    }
 }
 
 impl fmt::Display for Undecoded {
@@ -120,6 +124,13 @@ pub enum Layer {
     Undecoded(Undecoded),
 }
 
+impl Layer {
+    pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
+        match self {
+            Layer::Undecoded(inner) => inner.to_tree_item(),
+        }
+    }
+}
 impl fmt::Display for Layer {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
@@ -156,8 +167,12 @@ impl Packet {
 
     pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
         TreeItem::new(
-                self.to_string(),
-                vec![TreeItem::new_leaf(self.layers[0].to_string())],
+            self.to_string(),
+            //vec![TreeItem::new_leaf(self.layers[0].to_string())],
+            self.layers
+                .iter()
+                .map(|l| l.to_tree_item())
+                .collect::<Vec<TreeItem>>(),
         )
     }
 }
