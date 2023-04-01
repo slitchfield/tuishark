@@ -1,4 +1,3 @@
-
 use std::fmt;
 use std::fs::File;
 
@@ -13,6 +12,40 @@ pub struct BytePool {
 impl BytePool {
     fn new() -> Self {
         BytePool { bytes: vec![] }
+    }
+
+    pub fn hexdump(&self, _window_width: usize) -> String {
+        let mut retstr: String = String::new();
+
+        let bytes_per_line = 16; // TODO: Dynamic based on window width
+
+        const ADDRESS_WIDTH: usize = 4;
+        const ROW_PREAMBLE_WIDTH: usize = ADDRESS_WIDTH + 2 + 2; // Hex 0x + ": "
+
+        retstr.extend([" "; ROW_PREAMBLE_WIDTH]);
+        for i in 0..bytes_per_line {
+            retstr += format!("{:02x} ", i).as_str();
+        }
+        retstr += "\n";
+
+        let num_lines = self.bytes.len() / bytes_per_line;
+        for i in 0..num_lines {
+            retstr += format!("{:#06X}: ", i * bytes_per_line).as_str();
+            for j in 0..bytes_per_line {
+                retstr += format!("{:02x} ", self.bytes[i * bytes_per_line + j]).as_str();
+            }
+            retstr += "\n";
+        }
+
+        let leftover_bytes = self.bytes.len() % bytes_per_line;
+        if leftover_bytes != 0 {
+            retstr += format!("{:#06X}: ", num_lines * bytes_per_line).as_str();
+            for i in 0..leftover_bytes {
+                retstr += format!("{:02x} ", self.bytes[num_lines * bytes_per_line + i]).as_str();
+            }
+        }
+
+        retstr
     }
 }
 
