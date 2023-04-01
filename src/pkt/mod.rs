@@ -142,7 +142,7 @@ impl Packet {
 
         while next_byte != num_bytes {
             // We haven't decoded anything yet, indicating we need to switch on linktype for further information
-            if self.layers.len() == 0 {
+            if self.layers.is_empty() {
                 match self.linktype {
                     pcap_parser::Linktype::ETHERNET => {
                         // Todo: have each dissector ingest bytes and return a "next byte" along with the constructed layer
@@ -173,7 +173,6 @@ impl Packet {
             );
             next_byte = next_byte_local;
             self.layers.push(Layer::Undecoded(layer));
-
         }
     }
 
