@@ -1,6 +1,7 @@
 use std::fmt;
 use std::fs::File;
 
+use tui::style::{Color, Style};
 use tui_tree_widget::TreeItem;
 
 #[allow(dead_code)]
@@ -105,7 +106,7 @@ impl Undecoded {
     }
 
     pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
-        TreeItem::new_leaf(self.to_string())
+        TreeItem::new_leaf(self.to_string()).style(Style::default().bg(Color::LightRed))
     }
 }
 
