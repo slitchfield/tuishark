@@ -116,6 +116,8 @@ impl fmt::Display for Layer {
 pub struct Packet {
     num: usize,
     pub bytepool: BytePool,
+    pub linktype: pcap_parser::Linktype,
+    pub decoded: bool,
     pub layers: Vec<Layer>,
 }
 
@@ -124,6 +126,8 @@ impl Packet {
         Packet {
             num: 0,
             bytepool: BytePool::new(),
+            linktype: pcap_parser::Linktype::NULL,
+            decoded: false,
             layers: vec![],
         }
     }
@@ -167,6 +171,7 @@ pub fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
     let mut reader = pcap_parser::create_reader(65536, file).expect("PcapNGReader");
 
     let mut ret_vec: Vec<Packet> = vec![];
+    let mut linktype: pcap_parser::Linktype = pcap_parser::Linktype::NULL;
 
     loop {
         match reader.next() {
@@ -179,9 +184,12 @@ pub fn legacy_pcap_to_packet(path: String) -> Vec<Packet> {
                         let pkt_len = legacyblock.caplen as usize;
                         pkt.bytepool.bytes.reserve(pkt_len);
                         pkt.bytepool.bytes.extend_from_slice(legacyblock.data);
+                        pkt.linktype = linktype;
                         ret_vec.push(pkt);
                     }
-                    pcap_parser::PcapBlockOwned::LegacyHeader(_legacyheader) => {}
+                    pcap_parser::PcapBlockOwned::LegacyHeader(legacyheader) => {
+                        linktype = legacyheader.network;
+                    }
                     pcap_parser::PcapBlockOwned::NG(_ng) => {}
                 }
                 reader.consume(offset);
