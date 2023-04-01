@@ -138,19 +138,42 @@ impl Packet {
     pub fn decode(&mut self) {
         // TODO: fill out current stub
         let num_bytes = self.bytepool.bytes.len();
-        match self.linktype {
-            pcap_parser::Linktype::ETHERNET => {
-                // Todo: have each dissector ingest bytes and return a "next byte" along with the constructed layer
-                self.layers
-                    .push(Layer::Ethernet(dissectors::ethernet::Ethernet {}));
+        let mut next_byte: usize = 0;
+
+        while next_byte != num_bytes {
+            // We haven't decoded anything yet, indicating we need to switch on linktype for further information
+            if self.layers.len() == 0 {
+                match self.linktype {
+                    pcap_parser::Linktype::ETHERNET => {
+                        // Todo: have each dissector ingest bytes and return a "next byte" along with the constructed layer
+                        let (layer, next_byte_local) = dissectors::ethernet::Ethernet::from_bytes(
+                            next_byte,
+                            &self.bytepool.bytes[next_byte..],
+                        );
+                        next_byte = next_byte_local;
+                        self.layers.push(Layer::Ethernet(layer));
+                    }
+                    // TODO: Support more linktypes than ethernet
+                    _ => {
+                        let (layer, next_byte_local) = dissectors::undecoded::Undecoded::from_bytes(
+                            next_byte,
+                            &self.bytepool.bytes[next_byte..],
+                        );
+                        next_byte = next_byte_local;
+                        self.layers.push(Layer::Undecoded(layer));
+                    }
+                }
             }
-            _ => {
-                self.layers
-                    .push(Layer::Undecoded(dissectors::undecoded::Undecoded {
-                        start_offset: 0,
-                        length: num_bytes,
-                    }));
-            }
+
+            // TODO: Look at last parsed layer to determine where to go next?
+            // For now, just assume everything else is undecoded
+            let (layer, next_byte_local) = dissectors::undecoded::Undecoded::from_bytes(
+                next_byte,
+                &self.bytepool.bytes[next_byte..],
+            );
+            next_byte = next_byte_local;
+            self.layers.push(Layer::Undecoded(layer));
+
         }
     }
 

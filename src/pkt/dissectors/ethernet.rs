@@ -14,6 +14,10 @@ impl Ethernet {
     pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
         TreeItem::new_leaf(self.to_string()).style(Style::default().bg(Color::LightYellow))
     }
+
+    pub fn from_bytes(_next_byte: usize, _bytes: &[u8]) -> (Self, usize) {
+        (Ethernet {}, 0)
+    }
 }
 
 impl fmt::Display for Ethernet {

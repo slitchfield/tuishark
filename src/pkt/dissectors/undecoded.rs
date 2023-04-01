@@ -20,6 +20,16 @@ impl Undecoded {
     pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
         TreeItem::new_leaf(self.to_string()).style(Style::default().bg(Color::LightRed))
     }
+
+    pub fn from_bytes(next_byte: usize, bytes: &[u8]) -> (Self, usize) {
+        (
+            Undecoded {
+                start_offset: next_byte,
+                length: bytes.len(),
+            },
+            next_byte + bytes.len(),
+        )
+    }
 }
 
 impl fmt::Display for Undecoded {
