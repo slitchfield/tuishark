@@ -62,13 +62,15 @@ impl fmt::Display for TuiSharkApp<'_> {
     }
 }
 
-fn ui<B: Backend>(f: &mut Frame<B>, app: &mut TuiSharkApp) {
+use tui_tree_widget::TreeItem;
+
+fn ui<B: Backend>(f: &mut Frame<B>, app: &mut TuiSharkApp, tree_obj: Vec<TreeItem>) {
     let chunks = Layout::default()
         .direction(Direction::Horizontal)
         .constraints([Constraint::Percentage(80), Constraint::Percentage(20)].as_ref())
         .split(f.size());
 
-    let packet_view = Tree::new(app.pkt_tree.items.clone())
+    let packet_view = Tree::new(tree_obj)
         .block(
             Block::default()
                 .borders(Borders::ALL)
@@ -109,8 +111,14 @@ fn run_app<B: Backend>(
 ) -> io::Result<()> {
     let mut last_tick = Instant::now();
 
+    let mut state_changed = true;
     loop {
-        terminal.draw(|f| ui(f, &mut app))?;
+
+        if state_changed {
+            let treeobject = app.pkt_tree.items.clone();
+            terminal.draw(|f| ui(f, &mut app, treeobject))?;
+            state_changed = false;
+        }
 
         let timeout = tick_rate
             .checked_sub(last_tick.elapsed())
@@ -126,6 +134,7 @@ fn run_app<B: Backend>(
                     KeyCode::Char('q') => return Ok(()),
                     _ => {}
                 }
+                state_changed = true;
             }
         }
 
@@ -155,7 +164,7 @@ fn main() -> Result<(), io::Error> {
     let backend = CrosstermBackend::new(stdout);
     let mut terminal = Terminal::new(backend)?;
 
-    let tick_rate = Duration::from_millis(250);
+    let tick_rate = Duration::from_millis(20);
     let mut app = TuiSharkApp::new();
     let path = get_hardcoded_path();
     app.load_packets_from_file(path.to_string());
