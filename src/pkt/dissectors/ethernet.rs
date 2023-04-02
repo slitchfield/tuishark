@@ -52,7 +52,8 @@ impl Ethernet {
         }
     }
 
-    pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
+    #[allow(dead_code)]
+    pub fn to_tree_item_verbose<'a, 'b>(&'a self) -> TreeItem<'b> {
         TreeItem::new(
             self.to_string(),
             vec![
@@ -68,6 +69,11 @@ impl Ethernet {
             ],
         )
         .style(Style::default().fg(Color::Black).bg(Color::LightYellow))
+    }
+
+    pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
+        TreeItem::new_leaf(self.to_string())
+            .style(Style::default().fg(Color::Black).bg(Color::LightYellow))
     }
 
     pub fn from_bytes(_next_byte: usize, bytes: &[u8]) -> (Self, usize) {

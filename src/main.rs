@@ -113,7 +113,6 @@ fn run_app<B: Backend>(
 
     let mut state_changed = true;
     loop {
-
         if state_changed {
             let treeobject = app.pkt_tree.items.clone();
             terminal.draw(|f| ui(f, &mut app, treeobject))?;
