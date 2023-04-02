@@ -153,7 +153,7 @@ fn get_hardcoded_path() -> &'static str {
 }
 #[cfg(target_os = "windows")]
 fn get_hardcoded_path() -> &'static str {
-    "C:/Users/samue/Documents/Github/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap"
+    "C:/Users/samue/Documents/Github/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP_trunc.pcap"
 }
 
 fn main() -> Result<(), io::Error> {
