@@ -2,6 +2,8 @@ use core::fmt;
 use tui::style::{Color, Style};
 use tui_tree_widget::TreeItem;
 
+use crate::pkt::LayerHint;
+
 #[derive(Clone, Debug)]
 #[allow(dead_code)]
 pub struct IPv4 {
@@ -83,14 +85,16 @@ impl IPv4 {
                 TreeItem::new_leaf(format!("Protocol: {}", self.protocol)),
                 TreeItem::new_leaf(format!("Header checksum: {:#06x}", self.header_xsum)),
                 TreeItem::new_leaf(format!("Source: {}", ipaddr_to_string(&self.source_addr))),
-                TreeItem::new_leaf(format!("Destination: {}", ipaddr_to_string(&self.dest_addr))),
-
+                TreeItem::new_leaf(format!(
+                    "Destination: {}",
+                    ipaddr_to_string(&self.dest_addr)
+                )),
             ],
         )
         .style(Style::default().fg(Color::Black).bg(Color::LightYellow))
     }
 
-    pub fn from_bytes(next_byte: usize, bytes: &[u8]) -> (Self, usize) {
+    pub fn from_bytes(next_byte: usize, bytes: &[u8]) -> (Self, usize, LayerHint) {
         assert!(bytes.len() >= 20);
         let version = (bytes[0] >> 4) & 0x0f;
         let header_len = bytes[0] & 0x0f;
@@ -126,8 +130,9 @@ impl IPv4 {
         };
 
         let ret_next_byte = next_byte + 4usize * (ip_layer.header_len as usize);
+        let layer_hint = LayerHint::Undecoded;
 
-        (ip_layer, ret_next_byte)
+        (ip_layer, ret_next_byte, layer_hint)
     }
 }
 

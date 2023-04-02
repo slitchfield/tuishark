@@ -2,6 +2,8 @@ use core::fmt;
 use tui::style::{Color, Style};
 use tui_tree_widget::TreeItem;
 
+use crate::pkt::LayerHint;
+
 #[derive(Clone, Debug)]
 pub struct Undecoded {
     pub start_offset: usize,
@@ -21,13 +23,14 @@ impl Undecoded {
         TreeItem::new_leaf(self.to_string()).style(Style::default().bg(Color::LightRed))
     }
 
-    pub fn from_bytes(next_byte: usize, bytes: &[u8]) -> (Self, usize) {
+    pub fn from_bytes(next_byte: usize, bytes: &[u8]) -> (Self, usize, LayerHint) {
         (
             Undecoded {
                 start_offset: next_byte,
                 length: bytes.len(),
             },
             next_byte + bytes.len(),
+            LayerHint::Undecoded
         )
     }
 }

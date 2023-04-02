@@ -1,3 +1,4 @@
+use crate::pkt::{LayerHint};
 use core::fmt;
 use tui::style::{Color, Style};
 use tui_tree_widget::TreeItem;
@@ -76,7 +77,9 @@ impl Ethernet {
             .style(Style::default().fg(Color::Black).bg(Color::LightYellow))
     }
 
-    pub fn from_bytes(_next_byte: usize, bytes: &[u8]) -> (Self, usize) {
+    pub fn from_bytes(_next_byte: usize, bytes: &[u8]) -> (Self, usize, LayerHint) {
+        assert!(bytes.len() >= 14usize);
+
         let mut destination_mac: [u8; 6] = [0u8; 6];
         destination_mac.clone_from_slice(&bytes[0..6]);
 
@@ -102,7 +105,12 @@ impl Ethernet {
 
         let next_byte = 14usize;
 
-        (ethlayer, next_byte)
+        let layer_hint = match ethlayer.ether_type {
+            Ethertype::IPV4 => { LayerHint::IPv4 },
+            _ => { LayerHint::Undecoded }
+        };
+
+        (ethlayer, next_byte, layer_hint)
     }
 }
 

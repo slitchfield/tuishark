@@ -98,6 +98,13 @@ pub enum Layer {
     Undecoded(dissectors::undecoded::Undecoded),
 }
 
+#[derive(Clone, Debug)]
+pub enum LayerHint {
+    Ethernet,
+    IPv4,
+    Undecoded,
+}
+
 impl Layer {
     pub fn to_tree_item<'a, 'b>(&'a self) -> TreeItem<'b> {
         match self {
@@ -143,69 +150,47 @@ impl Packet {
         let num_bytes = self.bytepool.bytes.len();
         let mut next_byte: usize = 0;
 
-        while next_byte != num_bytes {
-            // We haven't decoded anything yet, indicating we need to switch on linktype for further information
-            if self.layers.is_empty() {
-                match self.linktype {
-                    pcap_parser::Linktype::ETHERNET => {
-                        // Todo: have each dissector ingest bytes and return a "next byte" along with the constructed layer
-                        let (layer, next_byte_local) = dissectors::ethernet::Ethernet::from_bytes(
-                            next_byte,
-                            &self.bytepool.bytes[next_byte..],
-                        );
-                        next_byte = next_byte_local;
-                        self.layers.push(Layer::Ethernet(layer));
-                    }
-                    // TODO: Support more linktypes than ethernet
-                    _ => {
-                        let (layer, next_byte_local) = dissectors::undecoded::Undecoded::from_bytes(
-                            next_byte,
-                            &self.bytepool.bytes[next_byte..],
-                        );
-                        next_byte = next_byte_local;
-                        self.layers.push(Layer::Undecoded(layer));
-                    }
-                }
-            }
+        // Derive the initial layer hint from the link type specified by the pcap
+        let mut layer_hint = match self.linktype {
+            pcap_parser::Linktype::ETHERNET => LayerHint::Ethernet,
+            _ => LayerHint::Undecoded,
+        };
 
-            if matches!(self.layers[self.layers.len() - 1], Layer::Ethernet(_)) {
-                if let Layer::Ethernet(inner) = &self.layers[self.layers.len() - 1] {
-                    #[allow(clippy::single_match)]
-                    // Absolutely plan on parsing more from ethertype here
-                    match inner.ether_type {
-                        dissectors::ethernet::Ethertype::IPV4 => {
-                            let (layer, next_byte_local) = dissectors::ipv4::IPv4::from_bytes(
-                                next_byte,
-                                &self.bytepool.bytes[next_byte..],
-                            );
-                            next_byte = next_byte_local;
-                            self.layers.push(Layer::IPv4(layer));
-                        }
-                        _ => {
-                            // TODO:
-                            // For now, just assume everything else not positively identified is undecoded
-                            let (layer, next_byte_local) =
-                                dissectors::undecoded::Undecoded::from_bytes(
-                                    next_byte,
-                                    &self.bytepool.bytes[next_byte..],
-                                );
-                            next_byte = next_byte_local;
-                            self.layers.push(Layer::Undecoded(layer));
-                        }
-                    }
+        while next_byte != num_bytes {
+            match layer_hint {
+                LayerHint::Ethernet => {
+                    let (layer, next_byte_local, layer_hint_local) =
+                        dissectors::ethernet::Ethernet::from_bytes(
+                            next_byte,
+                            &self.bytepool.bytes[next_byte..],
+                        );
+                    self.layers.push(Layer::Ethernet(layer));
+                    next_byte = next_byte_local;
+                    layer_hint = layer_hint_local;
                 }
-            } else {
-                // TODO: parse higher layer protocols
-                // This will need a more thoughtful soluntion; maybe dissectors also return
-                //   a hint enum on what dissectors should be used on the payload
-                // TODO: look at how wireshark does this
-                // For now, just assume everything else not positively identified is undecoded
-                let (layer, next_byte_local) = dissectors::undecoded::Undecoded::from_bytes(
-                    next_byte,
-                    &self.bytepool.bytes[next_byte..],
-                );
-                next_byte = next_byte_local;
-                self.layers.push(Layer::Undecoded(layer));
+                LayerHint::IPv4 => {
+                    let (layer, next_byte_local, layer_hint_local) = dissectors::ipv4::IPv4::from_bytes(
+                        next_byte,
+                        &self.bytepool.bytes[next_byte..],
+                    );
+                    next_byte = next_byte_local;
+                    self.layers.push(Layer::IPv4(layer));
+                    layer_hint = layer_hint_local;
+                },
+                LayerHint::Undecoded => {
+                    // TODO: parse higher layer protocols
+                    // This will need a more thoughtful soluntion; maybe dissectors also return
+                    //   a hint enum on what dissectors should be used on the payload
+                    // TODO: look at how wireshark does this
+                    // For now, just assume everything else not positively identified is undecoded
+                    let (layer, next_byte_local, layer_hint_local) = dissectors::undecoded::Undecoded::from_bytes(
+                        next_byte,
+                        &self.bytepool.bytes[next_byte..],
+                    );
+                    next_byte = next_byte_local;
+                    self.layers.push(Layer::Undecoded(layer));
+                    layer_hint = layer_hint_local;
+                }
             }
         }
     }
