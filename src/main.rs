@@ -123,17 +123,23 @@ fn run_app<B: Backend>(
             .checked_sub(last_tick.elapsed())
             .unwrap_or_else(|| Duration::from_secs(0));
         if crossterm::event::poll(timeout)? {
-            if let Event::Key(key) = event::read()? {
-                match key.code {
-                    KeyCode::Left => app.pkt_tree.left(),
-                    KeyCode::Right => app.pkt_tree.right(),
-                    KeyCode::Down => app.pkt_tree.down(),
-                    KeyCode::Up => app.pkt_tree.up(),
+            match event::read()? {
+                Event::Key(key) => {
+                    match key.code {
+                        KeyCode::Left => app.pkt_tree.left(),
+                        KeyCode::Right => app.pkt_tree.right(),
+                        KeyCode::Down => app.pkt_tree.down(),
+                        KeyCode::Up => app.pkt_tree.up(),
 
-                    KeyCode::Char('q') => return Ok(()),
-                    _ => {}
+                        KeyCode::Char('q') => return Ok(()),
+                        _ => {}
+                    }
+                    state_changed = true;
                 }
-                state_changed = true;
+                Event::Resize(_, _) => {
+                    state_changed = true;
+                }
+                _ => {}
             }
         }
 
