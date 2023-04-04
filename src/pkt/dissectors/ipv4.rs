@@ -96,6 +96,8 @@ impl IPv4 {
 
     pub fn from_bytes(next_byte: usize, bytes: &[u8]) -> (Self, usize, LayerHint) {
         assert!(bytes.len() >= 20);
+
+        // TODO: move to byte packing func
         let version = (bytes[0] >> 4) & 0x0f;
         let header_len = bytes[0] & 0x0f;
         let diffserv = (bytes[1] >> 2) & 0x3f;
