@@ -26,7 +26,7 @@ use crossterm::{
 };
 
 // High level TODO list
-// - Parse 802.1q Header
+// - Parse 802.1q Header (Low priority)
 // - Parse IPV4
 // - Somehow cache treeitem construction to minimize slowdown
 
@@ -149,7 +149,7 @@ fn get_hardcoded_path() -> &'static str {
 }
 #[cfg(target_os = "macos")]
 fn get_hardcoded_path() -> &'static str {
-    "/Users/slitchfield3/reference/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP.pcap"
+    "/Users/slitchfield3/reference/ICS-Security-Tools/pcaps/ModbusTCP/ModbusTCP_trunc.pcap"
 }
 #[cfg(target_os = "windows")]
 fn get_hardcoded_path() -> &'static str {

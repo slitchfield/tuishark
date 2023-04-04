@@ -1,4 +1,4 @@
-use crate::pkt::{LayerHint};
+use crate::pkt::LayerHint;
 use core::fmt;
 use tui::style::{Color, Style};
 use tui_tree_widget::TreeItem;
@@ -106,8 +106,8 @@ impl Ethernet {
         let next_byte = 14usize;
 
         let layer_hint = match ethlayer.ether_type {
-            Ethertype::IPV4 => { LayerHint::IPv4 },
-            _ => { LayerHint::Undecoded }
+            Ethertype::IPV4 => LayerHint::IPv4,
+            _ => LayerHint::Undecoded,
         };
 
         (ethlayer, next_byte, layer_hint)

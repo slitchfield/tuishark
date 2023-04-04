@@ -95,6 +95,7 @@ impl fmt::Display for BytePool {
 pub enum Layer {
     Ethernet(dissectors::ethernet::Ethernet),
     IPv4(dissectors::ipv4::IPv4),
+    Tcp(dissectors::tcp::Tcp),
     Undecoded(dissectors::undecoded::Undecoded),
 }
 
@@ -102,6 +103,7 @@ pub enum Layer {
 pub enum LayerHint {
     Ethernet,
     IPv4,
+    Tcp,
     Undecoded,
 }
 
@@ -110,6 +112,7 @@ impl Layer {
         match self {
             Layer::Ethernet(inner) => inner.to_tree_item(),
             Layer::IPv4(inner) => inner.to_tree_item(),
+            Layer::Tcp(inner) => inner.to_tree_item(),
             Layer::Undecoded(inner) => inner.to_tree_item(),
         }
     }
@@ -119,6 +122,7 @@ impl fmt::Display for Layer {
         match self {
             Layer::Ethernet(layer) => write!(f, "{}", layer)?,
             Layer::IPv4(layer) => write!(f, "{}", layer)?,
+            Layer::Tcp(layer) => write!(f, "{}", layer)?,
             Layer::Undecoded(layer) => write!(f, "{}", layer)?,
         }
         Ok(())
@@ -169,24 +173,36 @@ impl Packet {
                     layer_hint = layer_hint_local;
                 }
                 LayerHint::IPv4 => {
-                    let (layer, next_byte_local, layer_hint_local) = dissectors::ipv4::IPv4::from_bytes(
-                        next_byte,
-                        &self.bytepool.bytes[next_byte..],
-                    );
+                    let (layer, next_byte_local, layer_hint_local) =
+                        dissectors::ipv4::IPv4::from_bytes(
+                            next_byte,
+                            &self.bytepool.bytes[next_byte..],
+                        );
                     next_byte = next_byte_local;
                     self.layers.push(Layer::IPv4(layer));
                     layer_hint = layer_hint_local;
-                },
+                }
+                LayerHint::Tcp => {
+                    let (layer, next_byte_local, layer_hint_local) =
+                        dissectors::tcp::Tcp::from_bytes(
+                            next_byte,
+                            &self.bytepool.bytes[next_byte..],
+                        );
+                    next_byte = next_byte_local;
+                    self.layers.push(Layer::Tcp(layer));
+                    layer_hint = layer_hint_local;
+                }
                 LayerHint::Undecoded => {
                     // TODO: parse higher layer protocols
                     // This will need a more thoughtful soluntion; maybe dissectors also return
                     //   a hint enum on what dissectors should be used on the payload
                     // TODO: look at how wireshark does this
                     // For now, just assume everything else not positively identified is undecoded
-                    let (layer, next_byte_local, layer_hint_local) = dissectors::undecoded::Undecoded::from_bytes(
-                        next_byte,
-                        &self.bytepool.bytes[next_byte..],
-                    );
+                    let (layer, next_byte_local, layer_hint_local) =
+                        dissectors::undecoded::Undecoded::from_bytes(
+                            next_byte,
+                            &self.bytepool.bytes[next_byte..],
+                        );
                     next_byte = next_byte_local;
                     self.layers.push(Layer::Undecoded(layer));
                     layer_hint = layer_hint_local;

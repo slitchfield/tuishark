@@ -30,7 +30,7 @@ impl Undecoded {
                 length: bytes.len(),
             },
             next_byte + bytes.len(),
-            LayerHint::Undecoded
+            LayerHint::Undecoded,
         )
     }
 }

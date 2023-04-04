@@ -130,7 +130,10 @@ impl IPv4 {
         };
 
         let ret_next_byte = next_byte + 4usize * (ip_layer.header_len as usize);
-        let layer_hint = LayerHint::Undecoded;
+        let layer_hint = match ip_layer.protocol {
+            6 => LayerHint::Tcp,
+            _ => LayerHint::Undecoded,
+        };
 
         (ip_layer, ret_next_byte, layer_hint)
     }
